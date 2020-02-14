@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="zh-tw">
+<head>
+	<meta charset="UTF-8">
+	<title></title>
+	
+	<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+	
+	<!-- 最新版本的 Bootstrap 核心 CSS 文件 -->
+	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+	<!-- 最新的 Bootstrap 核心 JavaScript 文件 -->
+	<script src="https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+	
+	<style type="text/css">
+		body,input,button,select,textarea{
+			font-family: "Helvetica Neue", Helvetica, Arial, "微軟正黑體", sans-serif;
+		}
+		
+		h1,h2,h3,h4,h5,h6{
+			font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;  
+		}
+		.cell {
+			cursor:pointer;
+		}
+	</style>
+</head>
+<body>
+
+	
+	<div class="container-fluid">
+			
+		<!-- 頁籤 -->
+		<ul class="nav nav-tabs">
+			<li role="presentation"><a href="Home.html">Home</a></li>
+			<li role="presentation"><a href="TicTacToe.html">井字遊戲</a></li>
+			<li role="presentation" class="active"><a href="#">五子棋</a></li>
+			<li role="presentation"><a href="Battleship.html">海戰棋</a></li>
+		</ul>
+		
+		<div class="page-header">
+			<h3>Welcome to Gomoku</h3>
+		</div>
+		
+		<!-- 自訂遊戲區塊 -->
+		<div class="row">
+			<div class="col-md-4">
+				<div class="input-group">
+					<input id="changeLevel" class="form-control" type="number" placeholder="幾層的範圍" min="5" max="35">
+					<span class="input-group-btn">
+						<button id="changeLevelBtn" class="btn btn-success" type="button">開始新遊戲</button>
+					</span>
+				</div>
+			</div>
+		</div>
+		
+		<!-- 遊戲資訊 -->
+		<div class="well well-lg">
+			<span>這是一個棋盤 <span class="isLevel"></span>*<span class="isLevel"></span> 的五子棋 </span>
+			<button type="button" class="btn btn-info btn-sm" onClick="window.location.reload();">再來一局</button>
+			<p>只要棋子五個連線即獲勝，沒有其他規則</p>
+			<p id="turnMessage">現在輪到:<span id="isTrunTo" class="text-info"></span></p>
+			<div class="alert alert-warning" role="alert" id="endMessage">...</div>
+		</div>
+		
+		<!-- 棋盤區 -->
+		<div id="table" style="text-align: center;">
+		</div>
+		
+	</div>
+
+	<script>
+		var turn; //輪到誰
+		var level = 9; //預設9*9
+		var winPoint = 5; //幾顆旗子連線贏
+		var isFinsh = false; //遊戲結束
+		
+		$(document).ready(function() {
+			$("title").html("五子棋");
+			startCheckerboard(level);
+			changePlayer();
+		});
+		
+		$(document)
+			//變更層數
+			.on('click','#changeLevelBtn',function(){
+				if($('#changeLevel').val() > 36){
+					alert("範圍太大了玩不完啦");
+					return false;
+				}else if($('#changeLevel').val() < 4){
+					alert("範圍太小不能玩..");
+					return false;
+				}
+				level = $('#changeLevel').val();
+				startCheckerboard(level);
+			})
+			
+			//下棋!
+			.on('click','.cell',function(){
+				if($(this).data("value") == 0 && !isFinsh){
+					isFinsh = true;
+					
+					$(this).html(turn);
+					$(this).data("value",turn);
+					
+					setTimeout(function(){
+						if(checkIsWin()){
+							if(confirm("玩家"+turn+"贏了!\n\n要再玩一場嗎?")){
+								location.reload();
+							}else{
+								$('#endMessage').html("遊戲已結束，玩家"+turn+"贏了!");
+								$('#endMessage').show();
+								$('#turnMessage').hide();
+							}
+						}else if(checkerboardIsFull()){
+							$('#endMessage').html("遊戲已結束，平手!");
+							$('#endMessage').show();
+							$('#turnMessage').hide();
+						}else{
+							isFinsh = false;
+						}
+						
+						changePlayer();
+					}, 20);
+
+				}
+			});
+		
+		//重置遊戲
+		function startCheckerboard(level){
+			$("#table").html('');
+			$(".isLevel").html(level);
+			for(var i=0 ; i < level ; i++){
+				var contect="";
+				for(var j=0 ; j < level ; j++){
+					contect += '<span id="cell'+ i + "-" + j + '" class="cell border" style="height:50px ; width: 50px; display: block;" data-value=0>  </span>';
+				}
+				$("#table").append('<div class="row">' + contect + '</div>');
+			}
+			isFinsh = false;
+			$('#endMessage').hide();
+		}
+		
+		//變更玩家
+		function changePlayer(){
+			turn = ((turn == 'O' || turn === undefined) ? 'X' : 'O');
+			$("#isTrunTo").html(turn);
+		}
+		
+		
+		//檢查是否獲勝
+		function checkIsWin(){
+			
+			// 直線 + 橫線
+			var name = '';
+			var value = '';
+			var rowCount = 0;
+			var colCount = 0;
+			for(var i=0; i < level ; i++){
+				rowValue = '';
+				colValue = '';
+				rowCount = 0;
+				colCount = 0;
+				for(var j=0 ; j < level ; j++){
+					rowName = "cell"+i+"-"+j;
+					rowValue = (rowValue == '') ? $('#'+rowName).data("value") : rowValue;
+					if(rowValue != $('#'+rowName).data("value")){
+						rowValue = $('#'+rowName).data("value");
+						rowCount = 0;
+					}
+					if(rowValue != 0 && rowValue == $('#'+rowName).data("value"))
+						rowCount++;
+
+					colName = "cell"+j+"-"+i;
+					colValue = (colValue == '') ? $('#'+colName).data("value") : colValue;
+					if(colValue != $('#'+colName).data("value")){
+						colValue = $('#'+colName).data("value");
+						colCount = 0;
+					}
+					if(colValue != 0 && colValue == $('#'+colName).data("value"))
+						colCount++;
+
+					if(rowCount >= winPoint || colCount >= winPoint) return true;
+				}
+			}
+
+			// 斜線(左)
+			var leftName = '';
+			var leftValue = '';
+			var leftCount = 0;
+			for(var k=(0-winPoint) ; k <= (level-winPoint) ; k++){
+				leftCount = 0;
+				for( i=0, j=k; i < level ; i++,j++){
+					leftName = "cell"+i+"-"+j;
+					if($('#'+leftName).data("value") !== undefined){
+						leftValue = (leftValue == '') ? $('#'+leftName).data("value") : leftValue;
+		
+						if(leftValue != $('#'+leftName).data("value")){
+							leftValue = $('#'+leftName).data("value");
+							leftCount = 0;
+						}
+						if(leftValue != 0  && leftValue == $('#'+leftName).data("value"))
+							leftCount++;
+		
+						if(leftCount >= winPoint) return true;
+					}
+				}
+			}
+			
+			// 斜線(右)
+			var rightName = '';
+			var rightValue = '';
+			var rightCount = 0;
+			for( k=(winPoint-1) ; k < (level+winPoint) ; k++){
+				rightCount = 0;
+				for( i=0, j=k; i < level ; i++,j--){
+					rightName = "cell"+i+"-"+j;
+					if($('#'+rightName).data("value") !== undefined){
+						rightValue = (rightValue == '') ? $('#'+rightName).data("value") : rightValue;
+		
+						if(rightValue != $('#'+rightName).data("value")){
+							rightValue = $('#'+rightName).data("value");
+							rightCount = 0;
+						}
+						if(rightValue != 0  && rightValue == $('#'+rightName).data("value"))
+							rightCount++;
+		
+						if(rightCount >= winPoint) return true;
+					}
+				}
+			}
+			return false;
+		}
+		
+		//檢查是否還有空位
+		function checkerboardIsFull(){
+			for(i=0; i < level; i++){
+				for(j=0; j < level; j++){
+					if($("#cell" + i + "-" + j).data("value") == 0)
+					return false;
+				}
+			}
+			return true;
+		}
+		
+
+	</script>
+</body>
+</html>

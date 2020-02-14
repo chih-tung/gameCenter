@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="zh-tw">
+<head>
+	<meta charset="UTF-8">
+	<title></title>
+	
+	<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+	
+	<!-- 最新版本的 Bootstrap 核心 CSS 文件 -->
+	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+	<!-- 最新的 Bootstrap 核心 JavaScript 文件 -->
+	<script src="https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+	
+	<style type="text/css">
+		body,input,button,select,textarea{
+			font-family: "Helvetica Neue", Helvetica, Arial, "微軟正黑體", sans-serif;
+		}
+		
+		h1,h2,h3,h4,h5,h6{
+			font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;  
+		}
+		.cell {
+			cursor:pointer;
+		}
+	</style>
+</head>
+<body>
+
+	
+	<div class="container-fluid">
+			
+		<!-- 頁籤 -->
+		<ul class="nav nav-tabs">
+			<li role="presentation"><a href="Home.html">Home</a></li>
+			<li role="presentation"><a href="TicTacToe.html">井字遊戲</a></li>
+			<li role="presentation"><a href="Gomoku.html">五子棋</a></li>
+			<li role="presentation" class="active"><a href="#">海戰棋</a></li>
+		</ul>
+		
+		<div class="page-header">
+			<h3>Welcome to Battleship</h3>
+		</div>
+		
+		<!-- 自訂遊戲區塊 -->
+		<div class="row">
+			<div class="col-md-4">
+				<div class="input-group">
+					<input id="changeLevel" class="form-control" type="number" placeholder="幾層的範圍" min="6" max="35">
+					<span class="input-group-btn">
+						<button id="changeLevelBtn" class="btn btn-success" type="button">開始新遊戲</button>
+					</span>
+				</div>
+			</div>
+		</div>
+		
+		<!-- 遊戲資訊 -->
+		<div class="well well-lg">
+			<span>這是一個 <span class="isLevel"></span>*<span class="isLevel"></span> 的海戰棋</span>
+			<button type="button" class="btn btn-info btn-sm" onClick="window.location.reload();">再來一局</button>
+			<p id="turnMessage">
+				題目由電腦出，點位置猜測戰艦在哪?<br>
+				航空母艦=>5   戰艦=>4  潛水艇=>3  驅逐艦=>3  掃雷艦=>2<br><br>
+				猜到戰艦:<span class="text-danger">O</span>  
+				沒猜中:<span class="text-info">X</span><br>
+			</p>
+			<p id="turnMessage">
+				還有<span id="shipCount" class="text-danger"></span>格沒猜到<br>
+				您已猜了<span id="clickCount" class="text-danger"></span>次，剩餘<span id="totalCount" class="text-danger"></span>次
+			</p>
+			<div class="alert alert-warning" role="alert" id="endMessage">...</div>
+		</div>
+		
+		<!-- 棋盤區 -->
+		<div id="table" style="text-align: center;">
+		</div>
+		
+	</div>
+
+	<script>
+		var level = 9; //預設9*9
+		var isFinsh = false; //遊戲結束
+		var clickCount = 0; //已走的步數
+		var totalCount = 20; //可以走的步數
+		var ships = [];//所有船的位置
+		var bombs = [];//猜過的位置
+		var shipArr = [];//所有船各自的位置
+		
+		$(document).ready(function() {
+			$("title").html("海戰棋");
+			startCheckerboard(level);
+		});
+		
+		$(document)
+			//變更層數
+			.on('click','#changeLevelBtn',function(){
+				if($('#changeLevel').val() > 36){
+					alert("範圍太大了玩不完啦");
+					return false;
+				}else if($('#changeLevel').val() < 5){
+					alert("範圍太小不能玩..");
+					return false;
+				}
+				level = $('#changeLevel').val();
+				startCheckerboard(level);
+			})
+			
+			//下棋!
+			.on('click','.cell',function(){
+				if($(this).data("value") == 0 && !isFinsh){
+					totalCount--;
+					clickCount++;
+					bombs.push($(this).attr('id'));
+					checkShip($(this).attr('id'));
+					updateCount();
+					
+					setTimeout(function(){
+						checkIsWin();
+					}, 20);
+				}
+			});
+		
+		//重置棋盤
+		function startCheckerboard(level){
+			clickCount = 0; //已走的步數
+			totalCount = 17 + Math.floor(level*level*0.3); //可以走的步數
+
+			ships = [];//所有船的位置
+			bombs = [];//猜過的位置
+			shipArr = [];//所有船各自的位置
+			
+			$("#table").html('');
+			$(".isLevel").html(level);
+			for(var i=0 ; i < level ; i++){
+				var contect="";
+				for(var j=0 ; j < level ; j++){
+					contect += '<span id="'+ i + "-" + j + '" class="cell border" style="height:50px ; width: 50px; display: block;" data-value=0>  </span>';
+				}
+				$("#table").append('<div class="row">' + contect + '</div>');
+			}
+			resetShip();
+			isFinsh = false;
+			$('#endMessage').hide();
+			updateCount();
+		}
+		
+		//更新步數
+		function updateCount(){
+			$("#clickCount").html(clickCount);
+			$("#totalCount").html(totalCount);
+			$("#shipCount").html(ships.length);
+		}
+		
+		//設定船
+		function resetShip(){
+			//ships = ["0-1","1-1","2-1","3-2","3-3","3-4","3-5"];
+			
+			//航空母艦:5
+			s1 = getShip(5);
+			$.merge(ships, s1);
+			shipArr.push(s1);
+
+			//戰艦:4
+			s2 = getShip(4);
+			$.merge(ships, s2);
+			shipArr.push(s2);
+			
+			//潛水艇:3
+			s3 = getShip(3);
+			$.merge(ships, s3);
+			shipArr.push(s3);
+			
+			//驅逐艦:3
+			s4 = getShip(3);
+			$.merge(ships, s4);
+			shipArr.push(s4);
+			
+			//掃雷艦:2
+			s5 = getShip(2);
+			$.merge(ships, s5);
+			shipArr.push(s5);
+			
+		}
+
+		//取亂數
+		function randomRange(min, max) {
+			return ~~(Math.random() * (max - min + 1)) + min
+		}
+
+		
+		//每艘船的位置，length:船的長度
+		function getShip(length){
+			var ship = [];//船的座標
+			var direction = randomRange(0,1);//船的方向:0:橫向,1:直向
+			var axisX, axisY;//船的起始座標
+			
+			//直向的船
+			if(direction==0){
+				axisX = randomRange(0,level-length);
+				axisY = randomRange(0,level-1);
+				for(i=0 ; i<length ; i++){
+					//檢查船的位置不能重複
+					if(ships.indexOf((axisX+i) + "-" + axisY)<0){
+						ship.push((axisX+i) + "-" + axisY);
+					}else{
+						//重複的要重設
+						ship = getShip(length);
+					}
+				}
+				
+			//橫向的船
+			}else{
+				axisX = randomRange(0,level-1);
+				axisY = randomRange(0,level-length);
+
+				for(i=0 ; i<length ; i++){
+					//檢查船的位置不能重複
+					if(ships.indexOf(axisX + "-" + (axisY+i))<0){
+						ship.push(axisX + "-" + (axisY+i));
+					}else{
+						//重複的要重設
+						ship = getShip(length);
+					}
+				}
+			}
+			return ship;
+		}
+	
+		//檢查是否炸到船
+		function checkShip(cell){
+			var index = ships.indexOf(cell);
+			if(index > -1){
+				ships.splice(index, 1);
+				$('#'+cell).html("O");
+				$('#'+cell).addClass("bg-danger");
+				$('#'+cell).data("value",1);
+				
+				//檢查猜完的船要換顏色
+				$.each(shipArr, function( index, ship ) {
+					var isBreak = false;
+					$.each(ship, function( index, value ) {
+						if(bombs.indexOf(value) < 0) isBreak=true;
+					});
+					if(isBreak) return;
+					$.each(ship, function( index, value ) {
+						$('#'+value).removeClass("bg-danger");
+						$('#'+value).addClass("bg-success");
+					});
+				});
+					
+			}else{
+				$('#'+cell).html("X");
+				$('#'+cell).addClass("bg-primary");
+				$('#'+cell).data("value",2);
+			}
+		}
+		
+		//檢查遊戲是否結束
+		function checkIsWin(){
+			if(ships.length === 0){
+				if(confirm("你贏了!\n\n要再玩一場嗎?")){
+					location.reload();
+				}else{
+					$('#endMessage').html("遊戲已結束，你贏了!");
+					$('#endMessage').show();
+					$('#turnMessage').hide();
+				}
+				isFinsh = true;
+			}
+			if(totalCount<=0){
+				showShips();
+				isFinsh = true;
+				setTimeout(function(){
+					if(confirm("你輸了\n\n要再玩一場嗎?")){
+						location.reload();
+					}else{
+						$('#endMessage').html("遊戲已結束，電腦贏了!");
+						$('#endMessage').show();
+						$('#turnMessage').hide();
+					}
+				}, 200);
+			}
+		}
+		
+		//顯示船的位置
+		function showShips(){
+			$.each(ships, function( index, value ) {
+				$('#'+value).addClass("bg-warning");
+			});
+		}
+
+	</script>
+</body>
+</html>
